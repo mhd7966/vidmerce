@@ -1,0 +1,396 @@
+openapi: 3.0.3
+info:
+  title: Vidmerce API
+  description: |
+    Video-based social commerce backend. All JSON responses use the standard envelope
+    (`code`, `message`, `data`, `meta`). See [docs/api.md](../../docs/api.md) for narrative detail.
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080
+    description: Local API (`make demo` or `make run-api`)
+
+tags:
+  - name: operational
+  - name: auth
+  - name: videos
+  - name: products
+  - name: feed
+  - name: likes
+  - name: views
+  - name: analytics
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Envelope:
+      type: object
+      properties:
+        code:
+          type: string
+          example: ok
+        message:
+          type: string
+        data: {}
+        meta: {}
+    User:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        created_at: { type: string, format: date-time }
+    TokenPair:
+      type: object
+      properties:
+        access_token: { type: string }
+        refresh_token: { type: string }
+    Video:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        user_id: { type: string, format: uuid }
+        title: { type: string }
+        description: { type: string }
+        video_url: { type: string, format: uri }
+        duration_sec: { type: integer }
+        created_at: { type: string, format: date-time }
+    Product:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        video_id: { type: string, format: uuid }
+        name: { type: string }
+        price_cents: { type: integer }
+        currency: { type: string }
+        image_url: { type: string, format: uri }
+    RegisterRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, minLength: 8 }
+    LoginRequest:
+      $ref: '#/components/schemas/RegisterRequest'
+    RefreshRequest:
+      type: object
+      required: [refresh_token]
+      properties:
+        refresh_token: { type: string }
+    CreateVideoRequest:
+      type: object
+      required: [title, video_url, duration_sec]
+      properties:
+        title: { type: string, maxLength: 200 }
+        description: { type: string }
+        video_url: { type: string, format: uri }
+        duration_sec: { type: integer, minimum: 1, maximum: 3600 }
+    CreateProductRequest:
+      type: object
+      required: [name, price_cents, image_url, video_id]
+      properties:
+        name: { type: string }
+        price_cents: { type: integer }
+        image_url: { type: string, format: uri }
+        video_id: { type: string, format: uuid }
+        currency: { type: string, default: USD }
+    ViewTrackRequest:
+      type: object
+      properties:
+        watch_ms: { type: integer }
+        country: { type: string }
+    LikeResponse:
+      type: object
+      properties:
+        liked: { type: boolean }
+        count: { type: integer, format: int64 }
+    ViewTrackResponse:
+      type: object
+      properties:
+        accepted: { type: boolean }
+        is_unique: { type: boolean }
+        rejected_by: { type: string }
+    Stats:
+      type: object
+      properties:
+        video_id: { type: string, format: uuid }
+        views: { type: integer, format: int64 }
+        unique_views: { type: integer, format: int64 }
+        likes: { type: integer, format: int64 }
+        engagement_rate: { type: number, format: double }
+        computed_at: { type: string, format: date-time }
+    FeedMeta:
+      type: object
+      properties:
+        pagination:
+          type: object
+          properties:
+            next_cursor: { type: string }
+    ErrorEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+      example:
+        code: validation_failed
+        message: invalid video id
+
+paths:
+  /health:
+    get:
+      tags: [operational]
+      summary: Liveness probe
+      responses:
+        '200':
+          description: Process is up
+  /ready:
+    get:
+      tags: [operational]
+      summary: Readiness probe
+      responses:
+        '200':
+          description: All dependencies reachable
+        '503':
+          description: One or more dependencies down
+
+  /auth/register:
+    post:
+      tags: [auth]
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegisterRequest' }
+      responses:
+        '201': { description: User created with tokens }
+        '400': { description: validation_failed }
+        '409': { description: conflict — email taken }
+
+  /auth/login:
+    post:
+      tags: [auth]
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        '200': { description: Tokens issued }
+        '401': { description: unauthenticated }
+        '429': { description: rate_limited }
+
+  /auth/refresh:
+    post:
+      tags: [auth]
+      summary: Rotate refresh token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RefreshRequest' }
+      responses:
+        '200': { description: New token pair }
+        '401': { description: unauthenticated }
+
+  /auth/logout:
+    post:
+      tags: [auth]
+      summary: Revoke refresh token
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RefreshRequest' }
+      responses:
+        '204': { description: Logged out }
+
+  /videos:
+    post:
+      tags: [videos]
+      summary: Create a video
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateVideoRequest' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - properties:
+                      data: { $ref: '#/components/schemas/Video' }
+        '401': { description: unauthenticated }
+
+  /videos/{id}:
+    get:
+      tags: [videos]
+      summary: Get video by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Video
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - properties:
+                      data: { $ref: '#/components/schemas/Video' }
+        '404': { description: not_found }
+
+  /videos/{id}/product:
+    get:
+      tags: [products]
+      summary: Get product linked to a video
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Product }
+        '404': { description: not_found }
+
+  /videos/{id}/like:
+    post:
+      tags: [likes]
+      summary: Like a video
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '202':
+          description: Accepted (async persist)
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - properties:
+                      data: { $ref: '#/components/schemas/LikeResponse' }
+        '429': { description: rate_limited }
+
+  /videos/{id}/unlike:
+    post:
+      tags: [likes]
+      summary: Unlike a video
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '202': { description: Accepted }
+
+  /videos/{id}/view:
+    post:
+      tags: [views]
+      summary: Track a view
+      description: Optional auth. Always returns 202; check `accepted` / `rejected_by` in body.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ViewTrackRequest' }
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - properties:
+                      data: { $ref: '#/components/schemas/ViewTrackResponse' }
+
+  /videos/{id}/stats:
+    get:
+      tags: [analytics]
+      summary: Video engagement stats
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - properties:
+                      data: { $ref: '#/components/schemas/Stats' }
+        '404': { description: not_found }
+        '500': { description: internal_error }
+
+  /products:
+    post:
+      tags: [products]
+      summary: Create a product for a video
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateProductRequest' }
+      responses:
+        '201': { description: Created }
+        '403': { description: forbidden }
+        '409': { description: conflict }
+
+  /products/{id}:
+    get:
+      tags: [products]
+      summary: Get product by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Product }
+        '404': { description: not_found }
+
+  /feed:
+    get:
+      tags: [feed]
+      summary: Cursor-paginated video feed
+      parameters:
+        - name: cursor
+          in: query
+          schema: { type: string }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20, maximum: 50 }
+      responses:
+        '200':
+          description: Page of videos
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Video' }
+                      meta: { $ref: '#/components/schemas/FeedMeta' }

@@ -1,0 +1,34 @@
+# Prometheus scrape config for local Vidmerce development.
+# API and worker run on the host (make run-api / make run-worker); containers
+# reach them via host.docker.internal.
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: vidmerce-api
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["host.docker.internal:8080"]
+        labels:
+          service: api
+
+  - job_name: vidmerce-worker
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["host.docker.internal:9091"]
+        labels:
+          service: worker
+
+  - job_name: redis
+    static_configs:
+      - targets: ["redis-exporter:9121"]
+
+  - job_name: postgres
+    static_configs:
+      - targets: ["postgres-exporter:9187"]
