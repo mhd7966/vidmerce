@@ -28,7 +28,7 @@ func TestViewFlow_EndToEnd(t *testing.T) {
 	truncateClickHouse(t, ch)
 
 	const durationSec = 30
-	vid := seedVideoWithDuration(t, pool, rdb, durationSec)
+	vid, _ := seedVideoWithDuration(t, pool, rdb, durationSec)
 	uid := uuid.New()
 	in := view.Input{
 		VideoID:  vid,
