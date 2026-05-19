@@ -53,8 +53,7 @@ export function registerAndLogin() {
     }
     const body = JSON.parse(r.body);
     return {
-        userID: body.data.user.id,
-        token: body.data.tokens.access_token,
+        token: body.data.access_token,
     };
 }
 

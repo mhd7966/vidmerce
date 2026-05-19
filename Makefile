@@ -148,6 +148,9 @@ load-stats: ## GET /videos/:id/stats stampede stress
 
 load-all: load-bootstrap load-feed load-like load-view load-stats ## Run every scenario in sequence
 
+load-run: ## Full k6 suite + loadtest/RESULTS.md (API + worker must be running)
+	bash hack/run-loadtest.sh
+
 # ---- Interview demo (one command) ----
 DEMO_DIR := .demo
 

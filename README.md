@@ -23,6 +23,7 @@ load tests.
 | http://localhost:8080/swagger/                 | Swagger UI (same spec as embedded OpenAPI YAML).                       |
 | [`docs/redis-keys.md`](docs/redis-keys.md)     | Catalog of every Redis key, its type, TTL, and purpose.                |
 | [`loadtest/README.md`](loadtest/README.md)     | k6 scenarios and what to look for in each one.                         |
+| [`loadtest/RESULTS.md`](loadtest/RESULTS.md)   | Latest local k6 run summary (`make load-run`).                         |
 | [`docs/observability.md`](docs/observability.md) | Prometheus metrics + Grafana dashboards.                           |
 
 Several docs (especially [`docs/architecture.md`](docs/architecture.md) and

@@ -12,6 +12,9 @@ import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { BASE_URL } from './lib.js';
 
+// 30% of VUs send an invalid cursor on purpose — 400 is expected, not a failure.
+http.setResponseCallback(http.expectedStatuses(200, 400));
+
 export const options = {
     scenarios: {
         feed_read: {

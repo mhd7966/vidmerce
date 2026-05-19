@@ -30,7 +30,7 @@ export default function () {
     if (!check(loginRes, { 'login 200': r => r.status === 200 })) {
         throw new Error(`bootstrap login failed: ${loginRes.status} ${loginRes.body}`);
     }
-    const token = JSON.parse(loginRes.body).data.tokens.access_token;
+    const token = JSON.parse(loginRes.body).data.access_token;
 
     let created = 0;
     for (let i = 0; i < COUNT; i++) {

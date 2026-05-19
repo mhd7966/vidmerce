@@ -10,8 +10,11 @@
 // 429s after ~10 toggles; the test asserts that error rate stays bounded
 // in aggregate.
 
+import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { BASE_URL, registerAndLogin, fetchFeedPage, postJSONAuthed } from './lib.js';
+
+http.setResponseCallback(http.expectedStatuses(202, 429));
 
 export const options = {
     scenarios: {

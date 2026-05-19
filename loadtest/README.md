@@ -16,6 +16,15 @@ InfluxDB / Prometheus if you want longer-lived dashboards.
 | `view.js`        | Mixed traffic: legit / no-watch / spammer        | `POST /videos/:id/view`                  |
 | `stats.js`       | 200 VUs on one video — stampede protection       | `GET /videos/:id/stats`                  |
 
+## Results
+
+After a full run, see **[`RESULTS.md`](RESULTS.md)** for the latest summary table.
+Raw k6 logs and JSON exports live under `results/` (gitignored).
+
+```bash
+make load-run   # bootstrap → feed → like → view → stats, then refresh RESULTS.md
+```
+
 ## Running
 
 Run the stack first:
